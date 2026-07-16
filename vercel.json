@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/fitbit/sync", "schedule": "0 6 * * *" }
+  ]
+}

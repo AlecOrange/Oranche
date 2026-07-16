@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Daily</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="topbar.js" defer></script>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-strong: rgba(255, 255, 255, 0.06);
+
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --text-quaternary: #4D4B47;
+
+  --accent: #7DD3FC;
+  --accent-glow: rgba(125, 211, 252, 0.30);
+  --good: #6ee7b7;
+  --warn: #FF8A4D;
+  --danger: #ff8a8a;
+
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body { min-height: 100vh; position: relative; overflow-x: hidden; }
+
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background:
+    radial-gradient(60% 50% at 82% 14%, rgba(125, 211, 252, 0.14) 0%, transparent 60%),
+    radial-gradient(50% 40% at 18% 90%, rgba(110, 231, 183, 0.08) 0%, transparent 60%);
+  filter: blur(40px);
+  pointer-events: none; z-index: 0;
+  animation: drift 36s ease-in-out infinite alternate;
+}
+body::after {
+  content: ''; position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.014) 1px, transparent 1px);
+  background-size: 3px 3px;
+  pointer-events: none; z-index: 1;
+}
+@keyframes drift { 0% { transform: translate(0, 0); } 100% { transform: translate(-2%, 2%); } }
+
+main {
+  position: relative; z-index: 2;
+  max-width: 720px; margin: 0 auto;
+  padding: 56px 20px 80px;
+  padding-top: max(56px, env(safe-area-inset-top, 56px));
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+}
+
+/* ===== Header ===== */
+.daily-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; margin-bottom: 20px;
+}
+.daily-title {
+  font-size: 24px; font-weight: 700; color: var(--text-primary);
+  margin: 0 0 4px;
+}
+.daily-subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+.daily-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.daily-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--text-primary);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.daily-btn:hover { background: var(--bg-card-strong); }
+.daily-btn:active { transform: scale(0.97); }
+.daily-btn.primary {
+  background: linear-gradient(180deg, rgba(125, 211, 252, 0.22), rgba(110, 231, 183, 0.22));
+  border-color: rgba(125, 211, 252, 0.24);
+}
+.daily-btn[disabled] { opacity: 0.5; pointer-events: none; }
+
+/* ===== Toast ===== */
+.daily-toast {
+  display: none;
+  align-items: center; gap: 8px;
+  padding: 12px 14px; margin-bottom: 18px;
+  border-radius: 12px;
+  font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.daily-toast.show { display: flex; }
+.daily-toast.ok { color: var(--good); border-color: rgba(110,231,183,0.25); }
+.daily-toast.err { color: var(--danger); border-color: rgba(255,138,138,0.25); }
+
+/* ===== Connect CTA (shown when Fitbit isn't linked yet) ===== */
+.daily-connect {
+  display: none;
+  flex-direction: column; align-items: center; text-align: center;
+  gap: 12px; padding: 40px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+.daily-connect.show { display: flex; }
+.daily-connect-icon { font-size: 36px; }
+.daily-connect-title { font-size: 17px; font-weight: 700; color: var(--text-primary); }
+.daily-connect-sub { font-size: 13px; color: var(--text-tertiary); max-width: 320px; }
+
+/* ===== Grid ===== */
+.daily-grid {
+  display: none;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.daily-grid.show { display: grid; }
+.daily-card {
+  grid-column: span 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 16px 14px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+}
+.daily-card.wide { grid-column: 1 / -1; }
+.daily-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.daily-card-label {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.daily-card-icon { font-size: 16px; opacity: 0.7; }
+.daily-card-value {
+  font-family: var(--font-mono);
+  font-size: 28px; font-weight: 700; color: var(--text-primary);
+  line-height: 1.1;
+}
+.daily-card-value span { font-size: 14px; font-weight: 600; color: var(--text-tertiary); }
+.daily-card-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
+
+.daily-bar-track {
+  margin-top: 10px; height: 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.06); overflow: hidden;
+}
+.daily-bar-fill {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #7DD3FC, #6ee7b7);
+  transition: width 0.4s ease;
+}
+
+/* ===== Sleep stage bar ===== */
+.sleep-stage-bar {
+  display: flex; height: 10px; border-radius: 5px; overflow: hidden;
+  margin-top: 12px; background: rgba(255,255,255,0.06);
+}
+.sleep-stage-seg { height: 100%; }
+.sleep-stage-seg.deep  { background: #5B8DEF; }
+.sleep-stage-seg.light { background: #7DD3FC; }
+.sleep-stage-seg.rem   { background: #C7A6FF; }
+.sleep-stage-seg.wake  { background: #76746E; }
+.sleep-legend {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
+  font-size: 11px; color: var(--text-tertiary);
+}
+.sleep-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.sleep-legend-dot { width: 7px; height: 7px; border-radius: 50%; }
+.sleep-legend-dot.deep  { background: #5B8DEF; }
+.sleep-legend-dot.light { background: #7DD3FC; }
+.sleep-legend-dot.rem   { background: #C7A6FF; }
+.sleep-legend-dot.wake  { background: #76746E; }
+
+/* ===== Workouts ===== */
+.daily-workout-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.daily-workout-row:first-of-type { border-top: none; padding-top: 4px; }
+.daily-workout-name { color: var(--text-primary); font-weight: 600; font-size: 13px; }
+.daily-workout-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.daily-workout-cal {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text-primary);
+  white-space: nowrap;
+}
+.daily-empty { font-size: 13px; color: var(--text-tertiary); padding: 6px 0; }
+
+@media (max-width: 480px) {
+  main { padding-top: max(40px, env(safe-area-inset-top, 40px)); }
+  .daily-title { font-size: 21px; }
+  .daily-card-value { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<main>
+  <div class="daily-header">
+    <div>
+      <h1 class="daily-title">Daily</h1>
+      <div class="daily-subtitle" id="dailySubtitle">Loading…</div>
+    </div>
+    <div class="daily-actions">
+      <button class="daily-btn" id="syncBtn" type="button">Sync</button>
+    </div>
+  </div>
+
+  <div class="daily-toast" id="dailyToast"></div>
+
+  <div class="daily-connect" id="dailyConnect">
+    <div class="daily-connect-icon">⌚</div>
+    <div class="daily-connect-title">Connect your Fitbit</div>
+    <div class="daily-connect-sub">Link your Fitbit account to see steps, heart rate, sleep and workouts here, synced automatically to your dashboard.</div>
+    <a class="daily-btn primary" href="/api/fitbit/authorize">Connect Fitbit</a>
+  </div>
+
+  <div class="daily-grid" id="dailyGrid">
+    <div class="daily-card">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Steps</span>
+        <span class="daily-card-icon">👣</span>
+      </div>
+      <div class="daily-card-value" id="statSteps">—</div>
+      <div class="daily-card-sub" id="statStepsGoal">of — goal</div>
+      <div class="daily-bar-track"><div class="daily-bar-fill" id="statStepsBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="daily-card">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Active min</span>
+        <span class="daily-card-icon">⚡</span>
+      </div>
+      <div class="daily-card-value" id="statActive">—</div>
+      <div class="daily-card-sub">fairly + very active</div>
+    </div>
+
+    <div class="daily-card">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Calories</span>
+        <span class="daily-card-icon">🔥</span>
+      </div>
+      <div class="daily-card-value" id="statCalories">—</div>
+      <div class="daily-card-sub">burned today</div>
+    </div>
+
+    <div class="daily-card">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Resting HR</span>
+        <span class="daily-card-icon">❤️</span>
+      </div>
+      <div class="daily-card-value" id="statHeart">—</div>
+      <div class="daily-card-sub">beats per minute</div>
+    </div>
+
+    <div class="daily-card">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Distance</span>
+        <span class="daily-card-icon">📍</span>
+      </div>
+      <div class="daily-card-value" id="statDistance">—</div>
+      <div class="daily-card-sub">kilometers today</div>
+    </div>
+
+    <div class="daily-card">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Sedentary</span>
+        <span class="daily-card-icon">🪑</span>
+      </div>
+      <div class="daily-card-value" id="statSedentary">—</div>
+      <div class="daily-card-sub">minutes today</div>
+    </div>
+
+    <div class="daily-card wide">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Sleep</span>
+        <span class="daily-card-icon">🌙</span>
+      </div>
+      <div class="daily-card-value" id="statSleep">—</div>
+      <div class="daily-card-sub" id="statSleepEff">efficiency —</div>
+      <div class="sleep-stage-bar" id="sleepStageBar"></div>
+      <div class="sleep-legend" id="sleepLegend"></div>
+    </div>
+
+    <div class="daily-card wide">
+      <div class="daily-card-top">
+        <span class="daily-card-label">Workouts today</span>
+        <span class="daily-card-icon">🏋️</span>
+      </div>
+      <div id="workoutsList"><div class="daily-empty">No workouts logged today</div></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var SUPABASE_URL = 'https://aydhdrclipttbbxdzayc.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_gfril0SN-Depv0bR68EC6A_bhWg57Hg';
+  var SYNC_THROTTLE_MS = 4 * 60 * 1000;
+  var SYNC_MARKER_KEY = 'daily:last-client-sync';
+
+  var els = {
+    subtitle: document.getElementById('dailySubtitle'),
+    toast: document.getElementById('dailyToast'),
+    connect: document.getElementById('dailyConnect'),
+    grid: document.getElementById('dailyGrid'),
+    syncBtn: document.getElementById('syncBtn'),
+  };
+
+  function fmtNum(n) { return (n || 0).toLocaleString('en-US'); }
+  function fmtMinutes(min) {
+    min = min || 0;
+    var h = Math.floor(min / 60);
+    var m = Math.round(min % 60);
+    if (h === 0) return m + 'm';
+    return h + 'h ' + m + 'm';
+  }
+  function timeAgo(iso) {
+    if (!iso) return 'never synced';
+    var diffMs = Date.now() - new Date(iso).getTime();
+    var mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'synced just now';
+    if (mins < 60) return 'synced ' + mins + 'm ago';
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return 'synced ' + hrs + 'h ago';
+    return 'synced ' + Math.floor(hrs / 24) + 'd ago';
+  }
+
+  function showToast(kind, text) {
+    els.toast.className = 'daily-toast show ' + kind;
+    els.toast.textContent = text;
+    setTimeout(function () { els.toast.classList.remove('show'); }, 5000);
+  }
+
+  function renderSummary(fitbit) {
+    if (!fitbit) return;
+    document.getElementById('statSteps').textContent = fmtNum(fitbit.steps);
+    document.getElementById('statStepsGoal').textContent = 'of ' + fmtNum(fitbit.stepsGoal) + ' goal';
+    var pct = fitbit.stepsGoal ? Math.min(100, Math.round((fitbit.steps / fitbit.stepsGoal) * 100)) : 0;
+    document.getElementById('statStepsBar').style.width = pct + '%';
+
+    document.getElementById('statActive').textContent = fitbit.activeMinutes || 0;
+    document.getElementById('statCalories').textContent = fmtNum(fitbit.caloriesOut);
+    document.getElementById('statHeart').textContent = fitbit.restingHeartRate ? fitbit.restingHeartRate : '—';
+    document.getElementById('statDistance').textContent = (fitbit.distanceKm || 0).toFixed(1);
+    document.getElementById('statSedentary').textContent = fmtNum(fitbit.sedentaryMinutes);
+
+    document.getElementById('statSleep').textContent = fitbit.sleepMinutes ? fmtMinutes(fitbit.sleepMinutes) : '—';
+    document.getElementById('statSleepEff').textContent = fitbit.sleepEfficiency ? 'efficiency ' + fitbit.sleepEfficiency + '%' : 'no sleep data yet';
+
+    var stages = fitbit.sleepStages;
+    var barEl = document.getElementById('sleepStageBar');
+    var legendEl = document.getElementById('sleepLegend');
+    barEl.innerHTML = '';
+    legendEl.innerHTML = '';
+    if (stages) {
+      var order = [
+        { key: 'deep', label: 'Deep' },
+        { key: 'light', label: 'Light' },
+        { key: 'rem', label: 'REM' },
+        { key: 'wake', label: 'Awake' },
+      ];
+      var total = order.reduce(function (sum, o) { return sum + ((stages[o.key] && stages[o.key].minutes) || 0); }, 0) || 1;
+      order.forEach(function (o) {
+        var minutes = (stages[o.key] && stages[o.key].minutes) || 0;
+        var seg = document.createElement('div');
+        seg.className = 'sleep-stage-seg ' + o.key;
+        seg.style.width = ((minutes / total) * 100) + '%';
+        barEl.appendChild(seg);
+
+        var item = document.createElement('span');
+        item.className = 'sleep-legend-item';
+        item.innerHTML = '<span class="sleep-legend-dot ' + o.key + '"></span>' + o.label + ' ' + fmtMinutes(minutes);
+        legendEl.appendChild(item);
+      });
+    }
+
+    var listEl = document.getElementById('workoutsList');
+    var workouts = fitbit.workouts || [];
+    if (!workouts.length) {
+      listEl.innerHTML = '<div class="daily-empty">No workouts logged today</div>';
+    } else {
+      listEl.innerHTML = workouts.map(function (w) {
+        return '<div class="daily-workout-row">' +
+          '<div><div class="daily-workout-name">' + escapeHtml(w.name || 'Workout') + '</div>' +
+          '<div class="daily-workout-meta">' + (w.durationMin || 0) + ' min</div></div>' +
+          '<div class="daily-workout-cal">' + fmtNum(w.calories) + ' cal</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    els.subtitle.textContent = timeAgo(fitbit.syncedAt);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function setConnected(isConnected) {
+    els.connect.classList.toggle('show', !isConnected);
+    els.grid.classList.toggle('show', isConnected);
+    els.syncBtn.style.display = isConnected ? '' : 'none';
+  }
+
+  function readQueryFlag() {
+    var params = new URLSearchParams(window.location.search);
+    var flag = params.get('fitbit');
+    if (flag === 'connected') showToast('ok', 'Fitbit connected — syncing your data…');
+    if (flag === 'error') showToast('err', "Couldn't connect Fitbit. Check your app credentials and try again.");
+    if (flag) {
+      params.delete('fitbit');
+      var qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+    }
+  }
+
+  function shouldThrottleSync() {
+    var last = 0;
+    try { last = Number(localStorage.getItem(SYNC_MARKER_KEY)) || 0; } catch (e) {}
+    return Date.now() - last < SYNC_THROTTLE_MS;
+  }
+  function markSynced() {
+    try { localStorage.setItem(SYNC_MARKER_KEY, String(Date.now())); } catch (e) {}
+  }
+
+  function runSync(manual) {
+    if (!manual && shouldThrottleSync()) return;
+    if (manual) { els.syncBtn.disabled = true; els.syncBtn.textContent = 'Syncing…'; }
+    fetch('/api/fitbit/sync', { method: 'GET' })
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        markSynced();
+        if (json && json.summary) renderSummary(json.summary);
+        if (manual) showToast('ok', 'Synced with Fitbit');
+      })
+      .catch(function () {
+        if (manual) showToast('err', 'Sync failed — try again in a moment.');
+      })
+      .finally(function () {
+        if (manual) { els.syncBtn.disabled = false; els.syncBtn.textContent = 'Sync'; }
+      });
+  }
+
+  function boot() {
+    readQueryFlag();
+    els.syncBtn.addEventListener('click', function () { runSync(true); });
+
+    if (!window.supabase) return;
+    var supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    supa.from('app_state').select('data').eq('key', 'daily').maybeSingle().then(function (res) {
+      var data = res && res.data && res.data.data;
+      if (data && data.fitbit) {
+        setConnected(true);
+        renderSummary(data.fitbit);
+      }
+      checkStatusAndSync();
+    }).catch(checkStatusAndSync);
+
+    supa.channel('app_state_daily')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.daily' }, function (payload) {
+        if (payload.new && payload.new.data && payload.new.data.fitbit) {
+          setConnected(true);
+          renderSummary(payload.new.data.fitbit);
+        }
+      })
+      .subscribe();
+  }
+
+  function checkStatusAndSync() {
+    fetch('/api/fitbit/status').then(function (r) { return r.json(); }).then(function (json) {
+      var connected = !!(json && json.connected);
+      setConnected(connected);
+      if (connected) runSync(false);
+    }).catch(function () {});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

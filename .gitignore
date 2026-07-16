@@ -3,3 +3,11 @@
 .vscode/
 .idea/
 *.swp
+
+# Local env vars (Fitbit + Supabase secrets) — set these in Vercel instead
+.env
+.env.local
+.vercel
+
+# Installed by Vercel when it builds the /api functions
+node_modules/

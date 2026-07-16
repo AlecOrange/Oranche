@@ -1,0 +1,8 @@
+{
+  "name": "oranche-dashboard",
+  "private": true,
+  "description": "Static personal dashboard with a few Vercel serverless functions for Fitbit OAuth.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
