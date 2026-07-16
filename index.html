@@ -636,7 +636,7 @@ body::after {
     <div class="day-ring-text">
       <div class="day-ring-status"    id="dayRingStatus">Loading…</div>
       <div class="day-ring-remaining" id="dayRingRemaining">—</div>
-      <div class="day-ring-hours">8:00 AM – 12:00 AM</div>
+      <div class="day-ring-hours">08:00 – 24:00</div>
     </div>
   </div>
 
@@ -677,7 +677,7 @@ body::after {
       <div class="gm-header">
         <div class="gm-header-left">
           <div class="gm-eyebrow" id="tomorrowLabel">Plan tomorrow —</div>
-          <div class="gm-tomorrow-sub">Write tonight, locked until 6 AM.</div>
+          <div class="gm-tomorrow-sub">Write tonight, locked until 06:00.</div>
         </div>
         <div class="gm-tomorrow-count" id="gmTomorrowCount">0 planned</div>
       </div>
@@ -902,12 +902,9 @@ body::after {
   function rgb(c) { return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')'; }
 
   function formatClock(d) {
-    let h = d.getHours();
+    const h = d.getHours();
     const m = d.getMinutes();
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12;
-    if (h === 0) h = 12;
-    return h + ':' + pad2(m) + ' ' + ampm;
+    return pad2(h) + ':' + pad2(m);
   }
   function formatRemaining(totalMin) {
     const h = Math.floor(totalMin / 60);
@@ -1048,7 +1045,7 @@ body::after {
     cb.type = 'checkbox';
     cb.className = 'gm-check';
     cb.checked = !!goal.done;
-    if (readOnly) { cb.disabled = true; cb.title = 'Activates at 6 AM tomorrow'; }
+    if (readOnly) { cb.disabled = true; cb.title = 'Activates at 06:00 tomorrow'; }
     cb.addEventListener('change', () => {
       const list = getGoals(key);
       if (!list[idx]) return;

@@ -492,7 +492,7 @@ main {
     <div class="stack-head">
       <div class="sf-eyebrow">Daily stack</div>
       <div class="sf-title">Tap each as you take it</div>
-      <div class="stack-progress-text" id="stackProgressText">— / — taken today · resets at 6 AM</div>
+      <div class="stack-progress-text" id="stackProgressText">— / — taken today · resets at 06:00</div>
     </div>
 
     <div class="stack-progress-track">
@@ -558,9 +558,9 @@ main {
   ];
 
   const STACK_WINDOWS = [
-    { key: 'morning', icon: '🌅', title: 'Morning', time: '7–10 AM', cutoffHour: 10 },
-    { key: 'lunch',   icon: '🍽️', title: 'Lunch',   time: '12–2 PM', cutoffHour: 14 },
-    { key: 'evening', icon: '🌙', title: 'Evening', time: '9–11 PM', cutoffHour: 23 },
+    { key: 'morning', icon: '🌅', title: 'Morning', time: '07:00–10:00', cutoffHour: 10 },
+    { key: 'lunch',   icon: '🍽️', title: 'Lunch',   time: '12:00–14:00', cutoffHour: 14 },
+    { key: 'evening', icon: '🌙', title: 'Evening', time: '21:00–23:00', cutoffHour: 23 },
     { key: 'anytime', icon: '⏱️', title: 'Anytime', time: 'No fixed window', cutoffHour: null },
   ];
 
@@ -710,7 +710,7 @@ main {
     const totalCount = items.length;
     const takenCount = items.filter(i => taken[i.id]).length;
     document.getElementById('stackProgressText').textContent =
-      `${takenCount} / ${totalCount} taken today · resets at 6 AM`;
+      `${takenCount} / ${totalCount} taken today · resets at 06:00`;
     const pct = totalCount === 0 ? 0 : (takenCount / totalCount) * 100;
     document.getElementById('stackProgressBar').style.width = pct + '%';
 
